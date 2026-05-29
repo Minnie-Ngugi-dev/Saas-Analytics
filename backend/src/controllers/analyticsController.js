@@ -162,3 +162,63 @@ export const getDashboardSummary = async (req, res) => {
     });
   }
 };
+
+// @desc    Add manual analytics data
+// @route   POST /api/analytics/manual
+export const addManualAnalytics = async (req, res) => {
+  try {
+    const tenantId = req.user.tenantId;
+    const { revenue, orders, users, date, products } = req.body;
+    
+    // Validate input
+    if (revenue === undefined && orders === undefined && users === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide at least one of: revenue, orders, or users'
+      });
+    }
+    
+    // Calculate derived metrics
+    const conversionRate = users > 0 ? (orders / users) * 100 : 0;
+    const averageOrderValue = orders > 0 ? revenue / orders : 0;
+    
+    const analyticsData = {
+      tenantId,
+      date: date ? new Date(date) : new Date(),
+      metrics: {
+        revenue: revenue || 0,
+        users: users || 0,
+        orders: orders || 0,
+        conversionRate: Math.round(conversionRate * 100) / 100,
+        averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+        dailyActiveUsers: users || 0,
+        bounceRate: 0,
+        topProducts: products || [
+          { name: 'Sample Product', sales: orders || 0, revenue: revenue || 0 }
+        ],
+        trafficSources: {
+          direct: 45,
+          organic: 30,
+          social: 15,
+          referral: 10
+        }
+      },
+      source: 'manual'
+    };
+    
+    const analytics = new Analytics(analyticsData);
+    await analytics.save();
+    
+    res.json({
+      success: true,
+      message: 'Analytics data added successfully',
+      data: analytics
+    });
+  } catch (error) {
+    console.error('Add manual analytics error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};

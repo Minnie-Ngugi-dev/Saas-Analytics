@@ -43,13 +43,28 @@ const useAnalyticsStore = create((set, get) => ({
     get().fetchAnalytics(range);
   },
   
-  addAnalytics: async (metrics, date = null) => {
+  // ✅ FIXED: This is the function your Dashboard calls
+  addManualAnalytics: async (revenue, orders, users, date = null) => {
     try {
-      await api.post('/analytics', { metrics, date });
-      get().fetchAnalytics();
-      toast.success('Analytics data updated');
+      const response = await api.post('/analytics/manual', {
+        revenue,
+        orders,
+        users,
+        date: date || new Date().toISOString().split('T')[0]
+      });
+      
+      if (response.data.success) {
+        // Refresh data after adding
+        await get().fetchAnalytics();
+        await get().fetchDashboardSummary();
+        toast.success('Analytics data added successfully!');
+        return { success: true };
+      }
     } catch (error) {
-      toast.error('Failed to update analytics');
+      const message = error.response?.data?.error || 'Failed to add analytics data';
+      toast.error(message);
+      console.error(error);
+      return { success: false, error: message };
     }
   }
 }));
